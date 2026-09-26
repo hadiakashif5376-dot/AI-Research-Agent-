@@ -1,7 +1,27 @@
+import litellm
 from crewai import Agent, Task, Crew, Process, LLM
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 from ddgs import DDGS
+
+# --- Workaround for a known CrewAI bug (GitHub issue #6789) ---
+# CrewAI tags messages with an internal "cache_breakpoint" key for prompt
+# caching. Native providers strip it automatically, but the LiteLLM
+# fallback path (used for Groq) does not, and Groq's API rejects the
+# unknown field. This patch removes it before the request is sent.
+_original_completion = litellm.completion
+
+
+def _patched_completion(*args, **kwargs):
+    messages = kwargs.get("messages")
+    if messages:
+        for m in messages:
+            if isinstance(m, dict):
+                m.pop("cache_breakpoint", None)
+    return _original_completion(*args, **kwargs)
+
+
+litellm.completion = _patched_completion
 
 
 class DuckDuckGoSearchInput(BaseModel):
