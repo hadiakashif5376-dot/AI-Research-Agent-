@@ -76,11 +76,14 @@ def run_with_retry(topic: str, groq_key: str, report_length: str, max_retries: i
                 time.sleep(wait_seconds)
             else:
                 raise
-        except BadRequestError as e:
-            # The model sometimes hallucinates a tool call that doesn't exist
-            # (e.g. trying to "open" a URL). This is non-deterministic —
-            # simply retrying almost always works.
-            if "tool call validation failed" in str(e) and attempt < max_retries - 1:
+                except BadRequestError as e:
+            # The model occasionally misbehaves around tool calls — either
+            # hallucinating a tool that doesn't exist, or trying to call a
+            # tool right when it's being forced to give a final answer.
+            # Both are non-deterministic — simply retrying almost always works.
+            msg = str(e)
+            tool_issue = "tool call validation failed" in msg or "Tool choice is none" in msg
+            if tool_issue and attempt < max_retries - 1:
                 st.info(f"Agent tried an invalid action — retrying ({attempt + 1}/{max_retries})...")
                 continue
             else:
