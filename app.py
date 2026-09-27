@@ -69,7 +69,7 @@ def run_with_retry(topic: str, groq_key: str, report_length: str, max_retries: i
             return crew.kickoff()
         except RateLimitError as e:
             match = re.search(r"try again in ([\d.]+)s", str(e))
-            wait_seconds = float(match.group(1)) + 8 if match else 25
+            wait_seconds = max(float(match.group(1)) + 8, 30) if match else 30
             if attempt < max_retries - 1:
                 st.info(f"Rate limit hit — waiting {wait_seconds:.0f}s and retrying "
                          f"({attempt + 1}/{max_retries})...")
