@@ -73,7 +73,7 @@ def build_research_crew(topic: str, groq_api_key: str, report_length: str = "det
         model="groq/openai/gpt-oss-120b",
         api_key=groq_api_key,
         temperature=0.4,
-        max_tokens=700 if is_quick else 1800,
+        max_tokens=700 if is_quick else 1300,
     )
 
     search_tool = DuckDuckGoSearchTool()
@@ -96,7 +96,7 @@ def build_research_crew(topic: str, groq_api_key: str, report_length: str = "det
         llm=llm,
         verbose=True,
                 allow_delegation=False,
-        max_iter=3 if is_quick else 7,
+        max_iter=3 if is_quick else 5,
     )
 
     if is_quick:
@@ -109,7 +109,7 @@ def build_research_crew(topic: str, groq_api_key: str, report_length: str = "det
         )
     else:
         search_instruction = (
-            "Use the DuckDuckGo Web Search tool with 3-4 different, "
+            "Use the DuckDuckGo Web Search tool with 2-3 different, "
             "specific search queries covering different angles of the "
             "topic (e.g. current state, statistics/data, expert opinions, "
             "future outlook). Do not stop after one search — a thin, "
