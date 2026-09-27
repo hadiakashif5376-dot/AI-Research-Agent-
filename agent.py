@@ -33,7 +33,9 @@ class DuckDuckGoSearchTool(BaseTool):
     description: str = (
         "Searches the web using DuckDuckGo and returns the top results "
         "(title, link, and short snippet) for a given query. "
-        "Use this whenever you need current, factual, or web-based information."
+        "Use this whenever you need current, factual, or web-based information. "
+        "This is the ONLY tool available — you cannot open URLs, fetch pages, "
+        "or read files directly. Work only from the search snippets returned."
     )
     args_schema: type[BaseModel] = DuckDuckGoSearchInput
 
@@ -65,8 +67,8 @@ def build_research_crew(topic: str, groq_api_key: str) -> Crew:
     llm = LLM(
         model="groq/openai/gpt-oss-120b",
         api_key=groq_api_key,
-        temperature=0.5,
-        max_tokens=1200,  # raised for richer, more structured reports
+        temperature=0.4,
+        max_tokens=1200,
     )
 
     search_tool = DuckDuckGoSearchTool()
@@ -79,7 +81,11 @@ def build_research_crew(topic: str, groq_api_key: str) -> Crew:
             "executives. You always ground claims in search results, use "
             "tables when comparing data points, and cite the source name "
             "next to any figure you mention. You never fabricate statistics "
-            "or citation markers you can't back up."
+            "or citation markers you can't back up.\n\n"
+            "IMPORTANT: You have exactly ONE tool available: 'DuckDuckGo Web "
+            "Search'. You cannot open URLs, browse pages, or open files — "
+            "only run search queries and read the returned snippets. Never "
+            "attempt to call any tool other than 'DuckDuckGo Web Search'."
         ),
         tools=[search_tool],
         llm=llm,
@@ -92,7 +98,8 @@ def build_research_crew(topic: str, groq_api_key: str) -> Crew:
         description=(
             f"Research the topic: '{topic}'.\n"
             "Use the DuckDuckGo Web Search tool (1-2 focused searches) to "
-            "gather current, accurate information. Then write a polished "
+            "gather current, accurate information. You cannot open links — "
+            "work only from the search snippets. Then write a polished "
             "report."
         ),
         expected_output=(
