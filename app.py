@@ -76,7 +76,7 @@ def run_with_retry(topic: str, groq_key: str, report_length: str, max_retries: i
                 time.sleep(wait_seconds)
             else:
                 raise
-                except BadRequestError as e:
+                        except BadRequestError as e:
             # The model occasionally misbehaves around tool calls — either
             # hallucinating a tool that doesn't exist, or trying to call a
             # tool right when it's being forced to give a final answer.
