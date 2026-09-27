@@ -65,6 +65,13 @@ def build_research_crew(topic: str, groq_api_key: str, report_length: str = "det
     """Builds a single-agent CrewAI research crew for the given topic.
 
     report_length: "quick" for a short summary, "detailed" for a fuller report.
+
+    IMPORTANT: max_iter is kept LOW (3) for both modes. Every extra
+    iteration resends the whole growing conversation to Groq, and Groq's
+    free tier caps you at 8,000 tokens/minute — a single run with too many
+    iterations can eat the entire budget by itself, before you even retry.
+    "Detailed" gets its extra depth from a bigger max_tokens (a longer
+    final answer), not from more search round-trips.
     """
 
     is_quick = report_length == "quick"
@@ -73,7 +80,7 @@ def build_research_crew(topic: str, groq_api_key: str, report_length: str = "det
         model="groq/openai/gpt-oss-120b",
         api_key=groq_api_key,
         temperature=0.4,
-        max_tokens=700 if is_quick else 1300,
+        max_tokens=700 if is_quick else 1200,
     )
 
     search_tool = DuckDuckGoSearchTool()
@@ -90,17 +97,20 @@ def build_research_crew(topic: str, groq_api_key: str, report_length: str = "det
             "IMPORTANT: You have exactly ONE tool available: 'DuckDuckGo Web "
             "Search'. You cannot open URLs, browse pages, or open files — "
             "only run search queries and read the returned snippets. Never "
-            "attempt to call any tool other than 'DuckDuckGo Web Search'."
+            "attempt to call any tool other than 'DuckDuckGo Web Search'. "
+            "You are also working with a very limited token budget, so be "
+            "efficient: do your search(es) first, then write your full "
+            "answer in one go — don't go back and forth."
         ),
         tools=[search_tool],
         llm=llm,
         verbose=True,
-                allow_delegation=False,
-        max_iter=3 if is_quick else 5,
+        allow_delegation=False,
+        max_iter=3,
     )
 
     if is_quick:
-        search_instruction = "Use the DuckDuckGo Web Search tool (1-2 focused searches)."
+        search_instruction = "Use the DuckDuckGo Web Search tool with ONE focused search."
         body_instructions = (
             "1. A '## Overview' section (1-2 sentences)\n"
             "2. A '## Key Findings' section with 3-4 bullet points. Bold "
@@ -109,27 +119,24 @@ def build_research_crew(topic: str, groq_api_key: str, report_length: str = "det
         )
     else:
         search_instruction = (
-            "Use the DuckDuckGo Web Search tool with 2-3 different, "
-            "specific search queries covering different angles of the "
-            "topic (e.g. current state, statistics/data, expert opinions, "
-            "future outlook). Do not stop after one search — a thin, "
-            "shallow report is not acceptable for a detailed report."
+            "Use the DuckDuckGo Web Search tool with ONE OR TWO focused "
+            "searches (no more) covering the most important angles of the "
+            "topic. Then stop searching and write your full report — you "
+            "have a limited number of actions available."
         )
         body_instructions = (
             "1. A '## Overview' section (3-4 sentences of real background "
             "and context on the topic).\n"
-            "2. A '## Key Findings' section with 7-9 bullet points. Bold "
-            "the headline of each bullet, then follow it with 2-3 full "
-            "sentences of explanation and supporting detail (not just a "
-            "one-line headline). Where a search result gave a specific "
-            "figure or fact, name the source in parentheses, e.g. "
-            "(Source: TechCrunch).\n"
+            "2. A '## Key Findings' section with 6-7 bullet points. Bold "
+            "the headline of each bullet, then follow it with 1-2 full "
+            "sentences of explanation (not just a one-line headline). "
+            "Where a search result gave a specific figure or fact, name "
+            "the source in parentheses, e.g. (Source: TechCrunch).\n"
             "3. A '## Data & Trends' section: if the search results include "
             "any comparable data points (market size, statistics, "
             "timelines, percentages), present them in a markdown table "
-            "with columns like Metric | Detail | Source. If truly no "
-            "numeric data was found, briefly say so instead of inventing "
-            "numbers.\n"
+            "with columns like Metric | Detail | Source. If no numeric "
+            "data was found, briefly say so instead of inventing numbers.\n"
             "4. A '## Implications' section (2-3 sentences on what this "
             "means going forward).\n"
             "5. A '## Conclusion' section (2-3 sentences).\n"
