@@ -8,7 +8,7 @@ from agent import build_research_crew
 st.set_page_config(page_title="AI Research Agent", page_icon="🔎", layout="centered")
 
 st.title("🔎 AI Research Agent")
-st.caption("Powered by CrewAI + Groq (Llama 4 Scout) + DuckDuckGo search")
+st.caption("Powered by CrewAI + Groq (openai/gpt-oss-120b) + DuckDuckGo search")
 
 # --- API key comes only from Streamlit Cloud secrets (Settings -> Secrets) ---
 groq_key = st.secrets.get("GROQ_API_KEY", "")
@@ -30,7 +30,7 @@ def run_with_retry(topic: str, groq_key: str, max_retries: int = 5):
             return crew.kickoff()
         except RateLimitError as e:
             match = re.search(r"try again in ([\d.]+)s", str(e))
-            wait_seconds = float(match.group(1)) + 5 if match else 20
+            wait_seconds = float(match.group(1)) + 8 if match else 25
             if attempt < max_retries - 1:
                 st.info(f"Groq rate limit hit — waiting {wait_seconds:.0f}s and retrying "
                          f"({attempt + 1}/{max_retries})...")
