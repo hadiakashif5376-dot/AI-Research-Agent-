@@ -40,14 +40,14 @@ class DuckDuckGoSearchTool(BaseTool):
     def _run(self, query: str) -> str:
         try:
             with DDGS() as ddgs:
-                results = list(ddgs.text(query, max_results=2))
+                results = list(ddgs.text(query, max_results=3))
 
             if not results:
                 return f"No search results found for '{query}'."
 
             formatted = []
             for i, r in enumerate(results, start=1):
-                snippet = (r.get("body") or "")[:150]
+                snippet = (r.get("body") or "")[:280]
                 formatted.append(
                     f"{i}. {r.get('title')}\n"
                     f"   Link: {r.get('href')}\n"
@@ -66,39 +66,48 @@ def build_research_crew(topic: str, groq_api_key: str) -> Crew:
         model="groq/openai/gpt-oss-120b",
         api_key=groq_api_key,
         temperature=0.5,
-        max_tokens=700,  # caps response length so each call uses less of the 8,000 TPM budget
+        max_tokens=1200,  # raised for richer, more structured reports
     )
 
     search_tool = DuckDuckGoSearchTool()
 
     researcher = Agent(
         role="Senior Research Analyst",
-        goal=f"Research '{topic}' concisely and produce a clear summary.",
+        goal=f"Research '{topic}' thoroughly and produce a polished, well-structured report.",
         backstory=(
-            "You are an efficient research analyst. You search the web ONCE "
-            "or twice at most, then write your report immediately. You do "
-            "not over-research."
+            "You are a professional research analyst who writes reports for "
+            "executives. You always ground claims in search results, use "
+            "tables when comparing data points, and cite the source name "
+            "next to any figure you mention. You never fabricate statistics "
+            "or citation markers you can't back up."
         ),
         tools=[search_tool],
         llm=llm,
         verbose=True,
         allow_delegation=False,
-        max_iter=3,  # caps tool-call loops so token use per run stays predictable
+        max_iter=3,
     )
 
     research_task = Task(
         description=(
             f"Research the topic: '{topic}'.\n"
-            "Do ONE focused DuckDuckGo search (two at most) to gather "
-            "current facts, then write the report directly. Do not keep "
-            "searching repeatedly."
+            "Use the DuckDuckGo Web Search tool (1-2 focused searches) to "
+            "gather current, accurate information. Then write a polished "
+            "report."
         ),
         expected_output=(
-            "A concise markdown report with:\n"
-            "1. A short introduction (2-3 sentences)\n"
-            "2. 4-6 key bullet points\n"
-            "3. A brief conclusion\n"
-            "Keep it factual and cite source links where relevant."
+            "A well-structured markdown report with:\n"
+            "1. A '## Overview' section (2-3 sentences)\n"
+            "2. A '## Key Findings' section with 5-6 bullet points. Bold "
+            "the headline of each bullet, and where a search result gave "
+            "a specific figure or fact, name the source in parentheses, "
+            "e.g. (Source: TechCrunch).\n"
+            "3. If the search results include comparable data points (market "
+            "size, statistics, timelines), present them in a markdown table "
+            "with columns like Metric | Detail | Source.\n"
+            "4. A '## Conclusion' section (2-3 sentences).\n"
+            "Only cite a source if it actually appeared in your search "
+            "results — never invent citation markers or numbers."
         ),
         agent=researcher,
     )
