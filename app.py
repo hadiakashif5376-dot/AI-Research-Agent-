@@ -32,8 +32,8 @@ st.markdown(
 
 groq_key = st.secrets.get("GROQ_API_KEY", "")
 
-EXAMPLE_TOPICS = [
-    "Select an example topic...",
+TOPIC_OPTIONS = [
+    "Type your own topic...",
     "The impact of AI on software jobs in 2026",
     "Renewable energy trends in 2026",
     "The future of remote work",
@@ -41,8 +41,6 @@ EXAMPLE_TOPICS = [
 ]
 
 # --- Session state defaults ---
-if "topic_input" not in st.session_state:
-    st.session_state.topic_input = ""
 if "history" not in st.session_state:
     st.session_state.history = []  # list of dicts: {topic, report, sources, length}
 if "last_report" not in st.session_state:
@@ -51,12 +49,6 @@ if "last_sources" not in st.session_state:
     st.session_state.last_sources = None
 if "last_topic" not in st.session_state:
     st.session_state.last_topic = None
-
-
-def _apply_example():
-    choice = st.session_state.example_choice
-    if choice != EXAMPLE_TOPICS[0]:
-        st.session_state.topic_input = choice
 
 
 def split_report_and_sources(text: str):
@@ -135,13 +127,18 @@ st.caption("Single-agent researcher built with CrewAI · Groq (openai/gpt-oss-12
 if not groq_key:
     st.warning("Add GROQ_API_KEY in Streamlit Secrets to use this app.")
 
-st.selectbox("Or pick an example topic", EXAMPLE_TOPICS, key="example_choice", on_change=_apply_example)
+# --- Combined topic field: pick an example OR type your own ---
+topic_choice = st.selectbox("What topic should the agent research?", TOPIC_OPTIONS, key="topic_choice")
 
-topic = st.text_input(
-    "What topic should the agent research?",
-    key="topic_input",
-    placeholder="e.g. The impact of AI on software jobs in 2026",
-)
+if topic_choice == TOPIC_OPTIONS[0]:
+    topic = st.text_input(
+        "Your topic",
+        key="topic_input",
+        placeholder="e.g. The impact of AI on software jobs in 2026",
+        label_visibility="collapsed",
+    )
+else:
+    topic = topic_choice
 
 length_choice = st.radio("Report length", ["Quick summary", "Detailed report"], index=1, horizontal=True)
 report_length = "quick" if length_choice == "Quick summary" else "detailed"
