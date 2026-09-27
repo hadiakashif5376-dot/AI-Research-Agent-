@@ -2,12 +2,11 @@ import time
 import re
 import traceback
 import streamlit as st
-from litellm.exceptions import RateLimitError
+from litellm.exceptions import RateLimitError, BadRequestError
 from agent import build_research_crew
 
 st.set_page_config(page_title="AI Research Agent", page_icon="🔎", layout="wide")
 
-# --- Light custom styling ---
 st.markdown(
     """
     <style>
@@ -33,9 +32,8 @@ st.markdown(
 
 groq_key = st.secrets.get("GROQ_API_KEY", "")
 
-# --- Sidebar ---
 with st.sidebar:
-    st.header("ℹ️ About")
+    st.header("About")
     if groq_key:
         st.success("Groq API key loaded from secrets")
     else:
@@ -50,8 +48,7 @@ with st.sidebar:
         "DuckDuckGo web searches. Don't enter sensitive information."
     )
 
-# --- Main content ---
-st.title("🔎 AI Research Agent")
+st.title("AI Research Agent")
 st.caption("Single-agent researcher built with CrewAI · Groq (openai/gpt-oss-120b) · DuckDuckGo Search")
 
 if not groq_key:
@@ -69,9 +66,18 @@ def run_with_retry(topic: str, groq_key: str, max_retries: int = 5):
             match = re.search(r"try again in ([\d.]+)s", str(e))
             wait_seconds = float(match.group(1)) + 8 if match else 25
             if attempt < max_retries - 1:
-                st.info(f"Groq rate limit hit — waiting {wait_seconds:.0f}s and retrying "
+                st.info(f"Rate limit hit — waiting {wait_seconds:.0f}s and retrying "
                          f"({attempt + 1}/{max_retries})...")
                 time.sleep(wait_seconds)
+            else:
+                raise
+        except BadRequestError as e:
+            # The model sometimes hallucinates a tool call that doesn't exist
+            # (e.g. trying to "open" a URL). This is non-deterministic —
+            # simply retrying almost always works.
+            if "tool call validation failed" in str(e) and attempt < max_retries - 1:
+                st.info(f"Agent tried an invalid action — retrying ({attempt + 1}/{max_retries})...")
+                continue
             else:
                 raise
     return None
