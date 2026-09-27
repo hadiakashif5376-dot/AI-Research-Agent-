@@ -61,21 +61,26 @@ class DuckDuckGoSearchTool(BaseTool):
             return f"Search failed with error: {e}"
 
 
-def build_research_crew(topic: str, groq_api_key: str) -> Crew:
-    """Builds a single-agent CrewAI research crew for the given topic."""
+def build_research_crew(topic: str, groq_api_key: str, report_length: str = "detailed") -> Crew:
+    """Builds a single-agent CrewAI research crew for the given topic.
+
+    report_length: "quick" for a short summary, "detailed" for a fuller report.
+    """
+
+    is_quick = report_length == "quick"
 
     llm = LLM(
         model="groq/openai/gpt-oss-120b",
         api_key=groq_api_key,
         temperature=0.4,
-        max_tokens=1200,
+        max_tokens=700 if is_quick else 1200,
     )
 
     search_tool = DuckDuckGoSearchTool()
 
     researcher = Agent(
         role="Senior Research Analyst",
-        goal=f"Research '{topic}' thoroughly and produce a polished, well-structured report.",
+        goal=f"Research '{topic}' and produce a polished, well-structured report.",
         backstory=(
             "You are a professional research analyst who writes reports for "
             "executives. You always ground claims in search results, use "
@@ -94,16 +99,15 @@ def build_research_crew(topic: str, groq_api_key: str) -> Crew:
         max_iter=3,
     )
 
-    research_task = Task(
-        description=(
-            f"Research the topic: '{topic}'.\n"
-            "Use the DuckDuckGo Web Search tool (1-2 focused searches) to "
-            "gather current, accurate information. You cannot open links — "
-            "work only from the search snippets. Then write a polished "
-            "report."
-        ),
-        expected_output=(
-            "A well-structured markdown report with:\n"
+    if is_quick:
+        body_instructions = (
+            "1. A '## Overview' section (1-2 sentences)\n"
+            "2. A '## Key Findings' section with 3-4 bullet points. Bold "
+            "the headline of each bullet.\n"
+            "3. A '## Conclusion' section (1 sentence).\n"
+        )
+    else:
+        body_instructions = (
             "1. A '## Overview' section (2-3 sentences)\n"
             "2. A '## Key Findings' section with 5-6 bullet points. Bold "
             "the headline of each bullet, and where a search result gave "
@@ -113,8 +117,22 @@ def build_research_crew(topic: str, groq_api_key: str) -> Crew:
             "size, statistics, timelines), present them in a markdown table "
             "with columns like Metric | Detail | Source.\n"
             "4. A '## Conclusion' section (2-3 sentences).\n"
-            "Only cite a source if it actually appeared in your search "
-            "results — never invent citation markers or numbers."
+        )
+
+    research_task = Task(
+        description=(
+            f"Research the topic: '{topic}'.\n"
+            "Use the DuckDuckGo Web Search tool (1-2 focused searches) to "
+            "gather current, accurate information. You cannot open links — "
+            "work only from the search snippets. Then write a polished "
+            "report."
+        ),
+        expected_output=(
+            body_instructions
+            + "5. A final '## Sources' section listing each link you actually "
+            "used, as a markdown bullet list (e.g. '- [Page title](https://...)'). "
+            "Only include links that really appeared in your search results — "
+            "never invent a URL, statistic, or citation marker."
         ),
         agent=researcher,
     )
