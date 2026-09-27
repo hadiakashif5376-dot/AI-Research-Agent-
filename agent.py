@@ -63,7 +63,9 @@ def build_research_crew(topic: str, groq_api_key: str) -> Crew:
     """Builds a single-agent CrewAI research crew for the given topic."""
 
     llm = LLM(
-        model="groq/openai/gpt-oss-120b",
+        # Switched from openai/gpt-oss-120b (8,000 TPM free-tier limit) to
+        # llama-4-scout (30,000 TPM) to avoid constant rate-limit errors.
+        model="groq/meta-llama/llama-4-scout-17b-16e-instruct",
         api_key=groq_api_key,
         temperature=0.5,
     )
@@ -82,6 +84,7 @@ def build_research_crew(topic: str, groq_api_key: str) -> Crew:
         llm=llm,
         verbose=True,
         allow_delegation=False,
+        max_iter=5,  # caps how many tool-call loops the agent can do, to limit token use
     )
 
     research_task = Task(
