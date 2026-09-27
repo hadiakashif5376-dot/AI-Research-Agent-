@@ -40,14 +40,14 @@ class DuckDuckGoSearchTool(BaseTool):
     def _run(self, query: str) -> str:
         try:
             with DDGS() as ddgs:
-                results = list(ddgs.text(query, max_results=3))
+                results = list(ddgs.text(query, max_results=2))
 
             if not results:
                 return f"No search results found for '{query}'."
 
             formatted = []
             for i, r in enumerate(results, start=1):
-                snippet = (r.get("body") or "")[:200]
+                snippet = (r.get("body") or "")[:150]
                 formatted.append(
                     f"{i}. {r.get('title')}\n"
                     f"   Link: {r.get('href')}\n"
@@ -63,41 +63,40 @@ def build_research_crew(topic: str, groq_api_key: str) -> Crew:
     """Builds a single-agent CrewAI research crew for the given topic."""
 
     llm = LLM(
-        # Switched from openai/gpt-oss-120b (8,000 TPM free-tier limit) to
-        # llama-4-scout (30,000 TPM) to avoid constant rate-limit errors.
-        model="groq/meta-llama/llama-4-scout-17b-16e-instruct",
+        model="groq/openai/gpt-oss-120b",
         api_key=groq_api_key,
         temperature=0.5,
+        max_tokens=700,  # caps response length so each call uses less of the 8,000 TPM budget
     )
 
     search_tool = DuckDuckGoSearchTool()
 
     researcher = Agent(
         role="Senior Research Analyst",
-        goal=f"Research '{topic}' thoroughly and produce a clear, well-organized summary.",
+        goal=f"Research '{topic}' concisely and produce a clear summary.",
         backstory=(
-            "You are a meticulous research analyst who always verifies facts "
-            "using web search before writing anything. You cite where "
-            "information came from and avoid making things up."
+            "You are an efficient research analyst. You search the web ONCE "
+            "or twice at most, then write your report immediately. You do "
+            "not over-research."
         ),
         tools=[search_tool],
         llm=llm,
         verbose=True,
         allow_delegation=False,
-        max_iter=5,  # caps how many tool-call loops the agent can do, to limit token use
+        max_iter=3,  # caps tool-call loops so token use per run stays predictable
     )
 
     research_task = Task(
         description=(
             f"Research the topic: '{topic}'.\n"
-            "Use the DuckDuckGo Web Search tool to gather current, accurate "
-            "information. Search multiple angles if needed. Then write a "
-            "well-structured report."
+            "Do ONE focused DuckDuckGo search (two at most) to gather "
+            "current facts, then write the report directly. Do not keep "
+            "searching repeatedly."
         ),
         expected_output=(
-            "A markdown report with:\n"
+            "A concise markdown report with:\n"
             "1. A short introduction (2-3 sentences)\n"
-            "2. 4-6 key bullet points with the most important findings\n"
+            "2. 4-6 key bullet points\n"
             "3. A brief conclusion\n"
             "Keep it factual and cite source links where relevant."
         ),
