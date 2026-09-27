@@ -95,8 +95,8 @@ def build_research_crew(topic: str, groq_api_key: str, report_length: str = "det
         tools=[search_tool],
         llm=llm,
         verbose=True,
-        allow_delegation=False,
-        max_iter=3,
+                allow_delegation=False,
+        max_iter=3 if is_quick else 7,
     )
 
     if is_quick:
